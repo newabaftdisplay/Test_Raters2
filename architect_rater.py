@@ -96,59 +96,9 @@ def calculate_standard_excess(fee_income):
     final_excess = max(rounded_excess, 500)
     return final_excess
 
-def calculate_architect_premium(fee_income, discipline_percentages, 
-                               limit_of_indemnity=1000000,
-                               no_claims_period='0-3 years',
-                               retroactive_coverage='2+ years coverage',
-                               excess_multiplier=1.0,
-                               aggregate_excess_option='standard',
-                               underwriter_discretion_factor=1.0):
-    base_premium = fee_income * ARCHITECT_BASE_RATE
-    total_discipline_factor = sum(
-        ARCHITECT_DISCIPLINES[d] * (p / 100) for d, p in discipline_percentages.items() if p > 0
-    )
-    premium_after_disciplines = base_premium * total_discipline_factor
-    fee_discount = get_fee_size_discount(fee_income)
-    premium_after_fee_discount = premium_after_disciplines * (1 - fee_discount)
-    limit_factor = get_limit_factor(limit_of_indemnity)
-    premium_after_limit = premium_after_fee_discount * limit_factor
-    no_claims_discount = NO_CLAIMS_DISCOUNTS[no_claims_period]
-    premium_after_no_claims = premium_after_limit * (1 - no_claims_discount)
-    retro_discount = RETROACTIVE_DISCOUNTS[retroactive_coverage]
-    premium_after_retro = premium_after_no_claims * (1 - retro_discount)
-    excess_discount = EXCESS_MULTIPLIERS[excess_multiplier]['discount']
-    premium_after_excess = premium_after_retro * (1 - excess_discount)
-    agg_excess_discount = AGGREGATE_EXCESS_OPTIONS[aggregate_excess_option]['discount']
-    premium_after_agg_excess = premium_after_excess * (1 - agg_excess_discount)
-    final_premium = premium_after_agg_excess * underwriter_discretion_factor
-    standard_excess = calculate_standard_excess(fee_income)
-    actual_excess = standard_excess * excess_multiplier
-    return {
-        'fee_income': fee_income,
-        'base_premium': base_premium,
-        'discipline_factor': total_discipline_factor,
-        'premium_after_disciplines': premium_after_disciplines,
-        'fee_size_discount': fee_discount,
-        'premium_after_fee_discount': premium_after_fee_discount,
-        'limit_factor': limit_factor,
-        'premium_after_limit': premium_after_limit,
-        'no_claims_discount': no_claims_discount,
-        'premium_after_no_claims': premium_after_no_claims,
-        'retroactive_discount': retro_discount,
-        'premium_after_retro': premium_after_retro,
-        'excess_discount': excess_discount,
-        'premium_after_excess': premium_after_excess,
-        'aggregate_excess_discount': agg_excess_discount,
-        'premium_after_agg_excess': premium_after_agg_excess,
-        'underwriter_discretion_factor': underwriter_discretion_factor,
-        'final_premium': final_premium,
-        'standard_excess': standard_excess,
-        'actual_excess': actual_excess,
-        'limit_of_indemnity': limit_of_indemnity
-    }
-
-def get_user_limit_input():
-    return st.number_input("Limit of Indemnity (£)", min_value=100000, max_value=10000000, step=1000, value=1000000)
+# =============================================================================
+# MAIN STREAMLIT APP ENTRY POINT (Expanded)
+# =============================================================================
 
 def main():
     st.set_page_config(page_title="Professional Indemnity Insurance Quotation System", 
@@ -162,33 +112,31 @@ def main():
     with col1:
         st.subheader("Basic Information")
         fee_income = st.number_input("Annual Fee Income (£)", min_value=1000, max_value=10000000, value=250000, step=1000)
-        limit_of_indemnity = get_user_limit_input()
+        limit_of_indemnity = st.number_input("Limit of Indemnity (£)", min_value=100000, max_value=10000000, value=1000000, step=50000)
         st.subheader("Risk Profile")
         no_claims_period = st.selectbox("No Claims History", list(NO_CLAIMS_DISCOUNTS.keys()))
         retroactive_coverage = st.selectbox("Retroactive Coverage", list(RETROACTIVE_DISCOUNTS.keys()), index=2)
 
     with col2:
         st.subheader("Discipline Breakdown")
-
+        visible_disciplines = list(ARCHITECT_DISCIPLINES.keys())[:6]
+        hidden_disciplines = list(ARCHITECT_DISCIPLINES.keys())[6:]
         discipline_percentages = {}
         total_pct = 0
 
-        # Always visible first 6 disciplines
-        visible_disciplines = list(ARCHITECT_DISCIPLINES.keys())[:6]
-        hidden_disciplines = list(ARCHITECT_DISCIPLINES.keys())[6:]
-
-    for d in visible_disciplines:
-        pct = st.number_input(f"{d} (%)", min_value=0.0, max_value=100.0, step=5.0, value=0.0, key=f"vis_{d}")
-        discipline_percentages[d] = pct
-        total_pct += pct
-
-    with st.expander("Additional Disciplines (click to expand)"):
-        for d in hidden_disciplines:
-            pct = st.number_input(f"{d} (%)", min_value=0.0, max_value=100.0, step=5.0, value=0.0, key=f"hid_{d}")
+        for d in visible_disciplines:
+            pct = st.number_input(f"{d} (%)", min_value=0.0, max_value=100.0, step=5.0, value=0.0, key=f"vis_{d}")
             discipline_percentages[d] = pct
             total_pct += pct
-            if total_pct != 100:
-                st.warning(f"Discipline total: {total_pct}%. Must total 100%.")
+
+        with st.expander("Additional Disciplines (click to expand)"):
+            for d in hidden_disciplines:
+                pct = st.number_input(f"{d} (%)", min_value=0.0, max_value=100.0, step=5.0, value=0.0, key=f"hid_{d}")
+                discipline_percentages[d] = pct
+                total_pct += pct
+
+        if total_pct != 100:
+            st.warning(f"Discipline total: {total_pct}%. Must total 100%.")
 
     with st.expander("Advanced Options"):
         excess_level = st.selectbox("Excess Level", list(EXCESS_MULTIPLIERS.keys()), index=2)
@@ -237,6 +185,42 @@ def main():
                 ]
             })
             st.dataframe(breakdown, hide_index=True)
+
+# Dummy function to avoid error — replace with real logic
+
+def calculate_architect_premium(fee_income, discipline_percentages, limit_of_indemnity, no_claims_period, retroactive_coverage, excess_multiplier, aggregate_excess_option, underwriter_discretion_factor):
+    base_premium = fee_income * ARCHITECT_BASE_RATE
+    discipline_factor = sum(ARCHITECT_DISCIPLINES[d] * (v / 100) for d, v in discipline_percentages.items())
+    premium_after_disciplines = base_premium * discipline_factor
+    fee_size_discount = get_fee_size_discount(fee_income)
+    premium_after_fee_discount = premium_after_disciplines * (1 - fee_size_discount)
+    limit_factor = get_limit_factor(limit_of_indemnity)
+    premium_after_limit = premium_after_fee_discount * limit_factor
+    no_claims_discount = NO_CLAIMS_DISCOUNTS[no_claims_period]
+    premium_after_no_claims = premium_after_limit * (1 - no_claims_discount)
+    retro_discount = RETROACTIVE_DISCOUNTS[retroactive_coverage]
+    premium_after_retro = premium_after_no_claims * (1 - retro_discount)
+    excess_discount = EXCESS_MULTIPLIERS[excess_multiplier]['discount']
+    premium_after_excess = premium_after_retro * (1 - excess_discount)
+    agg_discount = AGGREGATE_EXCESS_OPTIONS[aggregate_excess_option]['discount']
+    premium_after_agg = premium_after_excess * (1 - agg_discount)
+    final_premium = premium_after_agg * underwriter_discretion_factor
+    standard_excess = calculate_standard_excess(fee_income)
+    actual_excess = standard_excess * excess_multiplier
+    return {
+        'final_premium': final_premium,
+        'actual_excess': actual_excess,
+        'limit_of_indemnity': limit_of_indemnity,
+        'base_premium': base_premium,
+        'discipline_factor': discipline_factor,
+        'fee_size_discount': fee_size_discount,
+        'limit_factor': limit_factor,
+        'no_claims_discount': no_claims_discount,
+        'retroactive_discount': retro_discount,
+        'excess_discount': excess_discount,
+        'aggregate_excess_discount': agg_discount,
+        'underwriter_discretion_factor': underwriter_discretion_factor
+    }
 
 if __name__ == "__main__":
     main()
