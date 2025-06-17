@@ -168,13 +168,25 @@ def main():
         retroactive_coverage = st.selectbox("Retroactive Coverage", list(RETROACTIVE_DISCOUNTS.keys()), index=2)
 
     with col2:
-        with st.expander("Discipline Breakdown (click to expand)"):
-            discipline_percentages = {}
-            total_pct = 0
-            for d in ARCHITECT_DISCIPLINES:
-                pct = st.number_input(f"{d} (%)", min_value=0.0, max_value=100.0, step=5.0, value=0.0, key=d)
-                discipline_percentages[d] = pct
-                total_pct += pct
+        st.subheader("Discipline Breakdown")
+
+        discipline_percentages = {}
+        total_pct = 0
+
+        # Always visible first 6 disciplines
+        visible_disciplines = list(ARCHITECT_DISCIPLINES.keys())[:6]
+        hidden_disciplines = list(ARCHITECT_DISCIPLINES.keys())[6:]
+
+    for d in visible_disciplines:
+        pct = st.number_input(f"{d} (%)", min_value=0.0, max_value=100.0, step=5.0, value=0.0, key=f"vis_{d}")
+        discipline_percentages[d] = pct
+        total_pct += pct
+
+    with st.expander("Additional Disciplines (click to expand)"):
+        for d in hidden_disciplines:
+            pct = st.number_input(f"{d} (%)", min_value=0.0, max_value=100.0, step=5.0, value=0.0, key=f"hid_{d}")
+            discipline_percentages[d] = pct
+            total_pct += pct
             if total_pct != 100:
                 st.warning(f"Discipline total: {total_pct}%. Must total 100%.")
 
