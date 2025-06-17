@@ -1,13 +1,15 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
+import numpy as np  # Newly added
 
 # =============================================================================
-# RATING CONSTANTS AND TABLES
+# FOUNDATIONAL DATA TABLES - These represent the core rating factors from your guide
 # =============================================================================
 
-ARCHITECT_BASE_RATE = 0.01
+# Architect base information
+ARCHITECT_BASE_RATE = 0.01  # 1% as specified in your guide
 
+# Architect discipline factors - risk multipliers for different types of work
 ARCHITECT_DISCIPLINES = {
     'Architectural Work - New Build': 2.0,
     'Architectural Work - Non-Structural Refurb': 1.0,
@@ -28,6 +30,7 @@ ARCHITECT_DISCIPLINES = {
     'Other Work': 1.0
 }
 
+# Fee size discounts - larger firms get better rates (threshold, discount)
 FEE_SIZE_DISCOUNTS = [
     (100000, 0.0),
     (200000, 0.05),
@@ -38,6 +41,7 @@ FEE_SIZE_DISCOUNTS = [
     (float('inf'), 0.25)
 ]
 
+# No Claims Discount structure
 NO_CLAIMS_DISCOUNTS = {
     '0-3 years': 0.00,
     '3-5 years': 0.10,
@@ -45,12 +49,14 @@ NO_CLAIMS_DISCOUNTS = {
     '10+ years': 0.30
 }
 
+# Retroactive Date Discount structure
 RETROACTIVE_DISCOUNTS = {
     'Inception': 0.25,
     'After 12 months': 0.10,
     '2+ years coverage': 0.00
 }
 
+# Excess multiplier structure
 EXCESS_MULTIPLIERS = {
     0.50: {'discount': -0.25, 'description': '50% of Standard - 25% Additional Premium'},
     0.75: {'discount': -0.10, 'description': '75% of Standard - 10% Additional Premium'}, 
@@ -61,6 +67,7 @@ EXCESS_MULTIPLIERS = {
     5.00: {'discount': 0.23, 'description': 'Five Times Standard - 23% Discount'}
 }
 
+# Aggregate excess options
 AGGREGATE_EXCESS_OPTIONS = {
     'standard': {'discount': 0.00, 'description': 'Standard Per-Claim Excess'},
     'agg_cap_no_thereafter': {'discount': 0.15, 'description': 'Aggregate Cap (3x Standard) - No Thereafter Excess'},
@@ -86,11 +93,8 @@ def get_limit_factor(limit_of_indemnity):
 def calculate_standard_excess(fee_income):
     raw_excess = fee_income * 0.005
     rounded_excess = round(raw_excess / 500) * 500
-    return max(rounded_excess, 500)
-
-# =============================================================================
-# PREMIUM CALCULATION ENGINE
-# =============================================================================
+    final_excess = max(rounded_excess, 500)
+    return final_excess
 
 def calculate_architect_premium(fee_income, discipline_percentages, 
                                limit_of_indemnity=1000000,
@@ -143,44 +147,36 @@ def calculate_architect_premium(fee_income, discipline_percentages,
         'limit_of_indemnity': limit_of_indemnity
     }
 
-# =============================================================================
-# STREAMLIT UI
-# =============================================================================
-
 def get_user_limit_input():
-    return st.number_input(
-        "Limit of Indemnity (£)",
-        min_value=100000,
-        max_value=10000000,
-        step=1000,
-        value=1000000,
-        help="Enter any indemnity limit between £100,000 and £10,000,000"
-    )
+    return st.number_input("Limit of Indemnity (£)", min_value=100000, max_value=10000000, step=1000, value=1000000)
 
 def main():
-    st.set_page_config(page_title="PI Insurance Quotation System", page_icon="📐", layout="wide")
-    st.title("📐 Architect PI Quotation Tool")
+    st.set_page_config(page_title="Professional Indemnity Insurance Quotation System", 
+                       page_icon="🏢", layout="wide")
+    st.title("🏢 Professional Indemnity Insurance Quotation System")
+    st.markdown("### Architect Premium Calculator")
     st.markdown("---")
 
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        st.subheader("Firm Profile")
-        fee_income = st.number_input("Annual Fee Income (£)", min_value=1000, step=1000, value=250000)
+        st.subheader("Basic Information")
+        fee_income = st.number_input("Annual Fee Income (£)", min_value=1000, max_value=10000000, value=250000, step=1000)
         limit_of_indemnity = get_user_limit_input()
+        st.subheader("Risk Profile")
         no_claims_period = st.selectbox("No Claims History", list(NO_CLAIMS_DISCOUNTS.keys()))
         retroactive_coverage = st.selectbox("Retroactive Coverage", list(RETROACTIVE_DISCOUNTS.keys()), index=2)
 
     with col2:
-        st.subheader("Discipline Breakdown")
-        discipline_percentages = {}
-        total_pct = 0
-        for d in ARCHITECT_DISCIPLINES:
-            pct = st.number_input(f"{d} (%)", min_value=0.0, max_value=100.0, step=5.0, value=0.0, key=d)
-            discipline_percentages[d] = pct
-            total_pct += pct
-        if total_pct != 100:
-            st.warning(f"Discipline total: {total_pct}%. Must total 100%.")
+        with st.expander("Discipline Breakdown (click to expand)"):
+            discipline_percentages = {}
+            total_pct = 0
+            for d in ARCHITECT_DISCIPLINES:
+                pct = st.number_input(f"{d} (%)", min_value=0.0, max_value=100.0, step=5.0, value=0.0, key=d)
+                discipline_percentages[d] = pct
+                total_pct += pct
+            if total_pct != 100:
+                st.warning(f"Discipline total: {total_pct}%. Must total 100%.")
 
     with st.expander("Advanced Options"):
         excess_level = st.selectbox("Excess Level", list(EXCESS_MULTIPLIERS.keys()), index=2)
@@ -203,6 +199,32 @@ def main():
         st.metric("Excess Amount", f"£{result['actual_excess']:,.0f}")
         st.metric("Limit of Indemnity", f"£{result['limit_of_indemnity']:,.0f}")
 
-# Run it
+        with st.expander("🔍 Calculation Breakdown"):
+            breakdown = pd.DataFrame({
+                "Step": [
+                    "Base Premium (1% of Fee Income)",
+                    "Discipline Factor",
+                    "Fee Size Discount",
+                    "Limit Factor",
+                    "No Claims Discount",
+                    "Retroactive Discount",
+                    "Excess Discount",
+                    "Aggregate Excess Discount",
+                    "Underwriter Discretion"
+                ],
+                "Value": [
+                    f"£{result['base_premium']:,.2f}",
+                    f"×{result['discipline_factor']:.3f}",
+                    f"-{result['fee_size_discount']:.0%}",
+                    f"×{result['limit_factor']:.3f}",
+                    f"-{result['no_claims_discount']:.0%}",
+                    f"-{result['retroactive_discount']:.0%}",
+                    f"-{result['excess_discount']:.0%}",
+                    f"-{result['aggregate_excess_discount']:.0%}",
+                    f"×{result['underwriter_discretion_factor']:.2f}"
+                ]
+            })
+            st.dataframe(breakdown, hide_index=True)
+
 if __name__ == "__main__":
     main()
